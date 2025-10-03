@@ -1,9 +1,10 @@
 import { v4 as uuidv4 } from "uuid";
 import { isValidEmail } from "./collect_information.js";
 
-const users_information = new Map()
-const questions = new Map()
-const conversations = new Map()
+const users_information = new Map();
+const questions = new Map();
+const conversations = new Map();
+const already_asked_questions = new Array(); 
 
 function create_session() {
     const session_id = uuidv4();
@@ -581,5 +582,16 @@ export function set_interview_messages(session_id, messages) {
     return {
         session_id: session_id,
         status: true
+    }
+}
+
+export const get_already_asked_questions = () => {
+    return already_asked_questions;
+} 
+
+export const add_question_to_already_asked_questions = (question) => {
+    already_asked_questions.push(question);
+    while(already_asked_questions.length > 20){
+        already_asked_questions.shift();
     }
 }
