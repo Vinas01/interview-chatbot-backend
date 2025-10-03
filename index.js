@@ -11,6 +11,8 @@ import {
 } from './apis/get_informations.js';
 import { storage, fileFilter } from './services/multer_storage_and_filter.js';
 import { api_parse_resume } from './apis/post_parse_resume.js';
+import { api_information_collector_chatbot } from './apis/post_infromation_collection.js';
+import { api_interviewer_chatbot } from './apis/post_interviewer.js';
 
 dotenv.config();
 
@@ -24,7 +26,9 @@ app.get('/get-questions-information', api_get_questions_information);
 app.get('/get-info-collect-messages', api_get_information_collection_messages);
 app.get('/get-interview-messages', api_get_interview_messages);
 
-app.post('/parse-resume', upload.single('file'), api_parse_resume)
+app.post('/parse-resume', upload.single('file'), api_parse_resume);
+app.post('/information-collection', api_information_collector_chatbot);
+app.post('/interview', api_interviewer_chatbot);
 
 const PORT = process.env.PORT || 7500;
 app.listen(PORT, () => {

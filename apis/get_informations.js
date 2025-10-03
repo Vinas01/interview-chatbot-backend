@@ -39,7 +39,7 @@ export function api_get_interview_messages(req ,res) {
     const data = get_interview_messages(session_id);
     // langchain message format to json messages
     res.status(200).json({
-        session_id: session_id,
+        session_id: data.session_id,
         messages: data.messages
     })
 }

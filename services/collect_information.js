@@ -5,7 +5,8 @@ import { SystemMessage, HumanMessage, AIMessage, ToolMessage } from "@langchain/
 import { conversation_prompt, get_instruction } from "../prompts/collect_information_prompts.js";
 import { DynamicStructuredTool, Tool } from "@langchain/core/tools";
 import { z } from "zod";
-import path from "path"; 
+import path from "path";
+import { type } from "os";
 
 dotenv.config({ path: path.join(process.cwd(), '.env') });
 
@@ -112,7 +113,7 @@ const tool_call_handler = (ai_response, is_name, is_phone_number, is_email) => {
                     }
                     if (name_flag) {
                         is_name = true;
-                        tool_messages.push(ToolMessage({
+                        tool_messages.push(new ToolMessage({
                             content: `Name saved successfully, now next instruction is ${get_instruction(
                                 is_name, is_phone_number, is_email
                             )}`,
@@ -120,14 +121,14 @@ const tool_call_handler = (ai_response, is_name, is_phone_number, is_email) => {
                         }))
                     }
                     else {
-                        tool_messages.push(ToolMessage({
+                        tool_messages.push(new ToolMessage({
                             content: `Provided name is not a valid name, First Name: ${args.first_name}\nLastName: ${args.last_name}`,
                             tool_call_id: id
                         }))
                     }
                 }
                 else {
-                    tool_messages.push(ToolMessage({
+                    tool_messages.push(new ToolMessage({
                         content: `Name is already collected, and can not be updated.`
                     }))
                 }
@@ -144,7 +145,7 @@ const tool_call_handler = (ai_response, is_name, is_phone_number, is_email) => {
                         is_phone_number = true;
                     }
                     if (is_phone_number) {
-                        tool_messages.push(ToolMessage({
+                        tool_messages.push(new ToolMessage({
                             content: `Phone number saved successfully, now next instruction is ${get_instruction(
                                 is_name, is_phone_number, is_email
                             )}`,
@@ -152,14 +153,14 @@ const tool_call_handler = (ai_response, is_name, is_phone_number, is_email) => {
                         }))
                     }
                     else {
-                        tool_messages.push(ToolMessage({
+                        tool_messages.push(new ToolMessage({
                             content: `Provided phone number is not a valid phone number.\nInternational Dialing Code: +${args_idc}\nPhone Number: ${args_phone_number}`,
                             tool_call_id: id
                         }))
                     }
                 }
                 else {
-                    tool_messages.push(ToolMessage({
+                    tool_messages.push(new ToolMessage({
                         content: `Phone Number is already collected, and can not be updated.`,
                         tool_call_id: id
                     }))
@@ -170,7 +171,7 @@ const tool_call_handler = (ai_response, is_name, is_phone_number, is_email) => {
                     if (typeof args.email === 'string' && isValidEmail(args.email)) {
                         is_email = true;
                         email = args.email;
-                        tool_messages.push(ToolMessage({
+                        tool_messages.push(new ToolMessage({
                             content: `Email address saved successfully, now next instruction is ${get_instruction(
                                 is_name, is_phone_number, is_email
                             )}`,
@@ -178,21 +179,21 @@ const tool_call_handler = (ai_response, is_name, is_phone_number, is_email) => {
                         }))
                     }
                     else {
-                        tool_messages.push(ToolMessage({
+                        tool_messages.push(new ToolMessage({
                             content: `Invalid Email address, Email address is not saved.`,
                             tool_call_id: id
                         }))
                     }
                 }
                 else {
-                    tool_messages.push(ToolMessage({
+                    tool_messages.push(new ToolMessage({
                         content: `Email Address is already collected, and can not be updated.`,
                         tool_call_id: id
                     }))
                 }
             }
             else {
-                tool_messages.push(ToolMessage({
+                tool_messages.push(new ToolMessage({
                     content: `There is no tool available with name ${name}`,
                     tool_call_id: id
                 }))
@@ -215,14 +216,17 @@ const tool_call_handler = (ai_response, is_name, is_phone_number, is_email) => {
 
 export const information_collector = async (messages, is_name, is_phone_number, is_email) => {
     try {
-        const ai_response = await gemini_llm_with_tools.invoke([SystemMessage(conversation_prompt(
+        const ai_response = await gemini_llm_with_tools.invoke([new SystemMessage(conversation_prompt(
             is_name, is_phone_number, is_email
         ))].concat(messages));
         messages.push(ai_response)
         const tool_response = tool_call_handler(ai_response, is_name, is_phone_number, is_email)
-        messages.concat(tool_response.tool_messages);
+        messages = messages.concat(tool_response.tool_messages);
+        is_name = tool_response.information_found_status.is_name;
+        is_phone_number = tool_response.information_found_status.is_phone_number;
+        is_email = tool_response.information_found_status.is_email;
         if (tool_response.tool_messages.length) {
-            const ai_response2 = await gemini_llm_with_tools.invoke([SystemMessage(conversation_prompt(
+            const ai_response2 = await gemini_llm_with_tools.invoke([new SystemMessage(conversation_prompt(
                 is_name, is_phone_number, is_email
             ))].concat(messages));
             messages.push(ai_response2);
@@ -235,14 +239,17 @@ export const information_collector = async (messages, is_name, is_phone_number, 
     } catch (error) {
         console.error('Gemini Error while collecting information, Error: ', error);
         try {
-            const ai_response = await groq_llm_with_tools.invoke([SystemMessage(conversation_prompt(
+            const ai_response = await groq_llm_with_tools.invoke([new SystemMessage(conversation_prompt(
                 is_name, is_phone_number, is_email
             ))].concat(messages));
             messages.push(ai_response)
-            const tool_response = tool_call_handler(ai_response, is_name, is_phone_number, is_email)
-            messages.concat(tool_response.tool_messages);
+            const tool_response = tool_call_handler(ai_response, is_name, is_phone_number, is_email);
+            is_name = tool_response.information_found_status.is_name;
+            is_phone_number = tool_response.information_found_status.is_phone_number;
+            is_email = tool_response.information_found_status.is_email;
+            messages = messages.concat(tool_response.tool_messages);
             if (tool_response.tool_messages.length) {
-                const ai_response2 = await groq_llm_with_tools.invoke([SystemMessage(conversation_prompt(
+                const ai_response2 = await groq_llm_with_tools.invoke([new SystemMessage(conversation_prompt(
                     is_name, is_phone_number, is_email
                 ))].concat(messages));
                 messages.push(ai_response2);
@@ -253,8 +260,9 @@ export const information_collector = async (messages, is_name, is_phone_number, 
                 information_found_status: tool_response.information_found_status
             }
         } catch (error) {
+            messages.push(new AIMessage('Something went wrong, please try again later.'))
             return {
-                messages: messages.concat(AIMessage('Something went wrong, please try again later.')),
+                messages: messages,
                 information: {
                     first_name: null,
                     last_name: null,
